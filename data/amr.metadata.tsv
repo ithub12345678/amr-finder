@@ -1,0 +1,20 @@
+Purpose:
+Adds biological meaning to each gene.
+
+Contains columns like:
+
+gene_id
+
+gene_name
+
+amr_class
+
+resistance_mechanism
+
+expected_length
+
+Used during:
+
+confidence scoring
+
+interpretation
