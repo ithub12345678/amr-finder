@@ -1,0 +1,2 @@
+Purpose:
+Decouple scoring logic from hard-coded values.
