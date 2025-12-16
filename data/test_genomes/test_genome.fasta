@@ -1,0 +1,10 @@
+Purpose:
+Small genome used for development and testing.
+
+Contains:
+
+One or more contigs
+
+Known AMR genes intentionally present
+
+Used to validate correctness.
