@@ -1,6 +1,6 @@
 # Day Log
 
-## Day 5 – Confidence Scoring Framework (Statistical + Deterministic)
+## Day 6 – Confidence Scoring Framework (Statistical + Deterministic)
 **Date:** 27-12-25
 **Time Spent:** ~4 hours  
 
