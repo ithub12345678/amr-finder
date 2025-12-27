@@ -94,7 +94,7 @@ Where:
 
 w1 + w2 = 1
 
-Default weighting may be adjusted depending on dataset characteristics
+Default weighting may be adjusted depending on dataset characteristics. The statistical score was computed as a weighted sum of normalized percent identity and normalized E-value. Identity was given slightly higher weight (0.6) to emphasize biological similarity, while E-value (0.4) accounted for statistical chance exclusion. The weights sum to one to maintain score normalization and interpretability.
 
 Example
 
