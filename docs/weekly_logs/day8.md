@@ -1,6 +1,6 @@
 # Day 8 – Weekly Progress Log
-DATE - 
-
+DATE - 07-01-2026
+TIME SPENT - ~3-4 hrs
 
 ## Overview
 Today’s work focused on **finalizing and integrating a biologically informed confidence-scoring framework** for the AMR detection pipeline. The primary objective was to combine **statistical**, **deterministic**, and **biological modifier** scores into a unified, interpretable final confidence score while ensuring modularity, robustness, and biological realism.
