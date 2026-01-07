@@ -1,230 +1,288 @@
-Design: Multi-Layer Confidence Scoring Framework for AMR Gene Detection
-Overview
+# Design: Multi-Layer Confidence Scoring Framework for AMR Gene Detection
 
-After filtering biologically valid hits, we introduce a multi-layer confidence scoring framework that integrates:
+## Overview
 
-Statistical evidence
+After filtering biologically valid BLAST hits, we implement a **multi-layer confidence scoring framework** that integrates:
 
-Deterministic gene integrity checks
+- Statistical evidence
+- Deterministic structural integrity checks
+- Biological context modifiers
 
-Biological context modifiers
+The framework is designed to **balance sensitivity and specificity** while preserving interpretability and biological realism. It is particularly suited for fragmented assemblies, draft genomes, and metagenomic datasets where classical single-metric scoring approaches are insufficient.
 
-This design prevents overconfidence from any single evidence domain while preserving interpretability, robustness, and biological realism, especially for fragmented assemblies, draft genomes, and metagenomic data.
+---
 
-Motivation
+## Motivation
 
-AMR gene detection cannot be reliably determined using a single metric such as percent identity or E-value alone. Strong evidence in one domain does not guarantee that a detected gene is complete, structurally coherent, or biologically plausible.
+AMR gene detection cannot be reliably inferred from a single metric such as percent identity or E-value alone. Strong statistical similarity does not guarantee that a detected gene is:
 
-To address this, we adopt a hybrid gated multiplicative framework that requires collective satisfaction across three domains, rather than allowing strong evidence from one domain to dominate the final confidence score.
+- Structurally intact  
+- Biologically plausible  
+- Consistent with known resistance gene behavior  
 
-Confidence Framework
+To address this, we adopt a **hybrid gated multiplicative framework** that requires collective agreement across three complementary evidence domains. This prevents overconfidence driven by any single factor while allowing partial but consistent evidence to contribute meaningfully.
 
-The framework consists of three layers:
+---
 
-Statistical Factors
+## Confidence Framework
 
-Deterministic Structural Factors
+The framework consists of **three independent but complementary layers**:
 
-Biological Context Modifiers
+1. **Statistical Factors (S)**
+2. **Deterministic Structural Factors (D)**
+3. **Biological Context Modifiers (B)**
 
-Each layer answers a distinct biological question, and the final confidence score is obtained through a gated multiplicative combination.
+Each layer answers a distinct biological question, and the final confidence score is computed through a **gated multiplicative combination**.
 
-Key design principle:
-Statistical evidence establishes existence, deterministic factors enforce gene integrity, and biological modifiers refine plausibility.
+**Key design principle**  
+Statistical evidence establishes existence, deterministic factors enforce structural integrity, and biological modifiers refine biological plausibility without dominating the score.
 
-Why Not a Simple Weighted Sum?
+---
 
-A standard weighted sum approach was intentionally avoided because:
+## Why Not a Simple Weighted Sum?
 
-A single low score can drive the entire result to zero
+A simple weighted sum approach was intentionally avoided because:
 
-This leads to over-penalization, especially in:
+- A single strong metric can dominate the final score
+- Structural or biological implausibility may be masked by high identity
+- Fragmented but biologically invalid hits may appear confident
 
-Fragmented assemblies
+Instead, a **multiplicative gating strategy** was adopted to ensure that:
+- Structural and biological constraints actively limit confidence
+- No single domain can independently inflate the final score
 
-Draft genomes
+---
 
-Metagenomes
+## Scoring Dimensions and Factors
 
-Instead, a hybrid gated multiplicative method was implemented to enforce integrity while allowing partial evidence to contribute meaningfully.
+## 1. Statistical Factors (S)
 
-Scoring Dimensions and Factors
-1. Statistical Factors (S)
+**Purpose**  
+Eliminate random or weak alignments.
 
-Purpose: Eliminate clear random matches
-Question answered: How unlikely is this alignment to be random?
+**Biological question answered**  
+How unlikely is this alignment to have occurred by chance?
 
-Factors used:
+### Factors Used
+- Normalized Percent Identity
+- Normalized E-value
 
-Normalized Percent Identity
+### a. Normalized Percent Identity
 
-Normalized E-value
-
-a. Normalized Identity
-
-Percent identity from BLAST is normalized to a continuous value between 0 and 1:
+Percent identity from BLAST is normalized to a continuous range between 0 and 1:
 
 identity_score = pident / 100
 
+yaml
+Copy code
 
 This normalization improves:
+- Scale compatibility across layers
+- Interpretability
+- Stability in downstream multiplication
 
-Consistency
+---
 
-Interpretability
+### b. Normalized E-value
 
-Compatibility with other scoring layers
-
-b. Normalized E-value
-
-The E-value represents the expected number of hits occurring by chance.
+The E-value reflects the expected number of random hits.
 
 Normalization formula:
 
 evalue_score = min(1.0, -log10(evalue) / 50)
 
+yaml
+Copy code
 
-This caps extremely small E-values while preserving relative strength.
+- Extremely small E-values are capped
+- Relative statistical strength is preserved
+- Zero E-values are safely handled by replacement
 
-Statistical Score Formula
-S = w1 × identity_score + w2 × evalue_score
+---
 
+### Statistical Score Formula
 
-Where:
+S = (0.6 × identity_score) + (0.4 × evalue_score)
 
-w1 + w2 = 1
+yaml
+Copy code
 
-Default weighting may be adjusted depending on dataset characteristics. The statistical score was computed as a weighted sum of normalized percent identity and normalized E-value. Identity was given slightly higher weight (0.6) to emphasize biological similarity, while E-value (0.4) accounted for statistical chance exclusion. The weights sum to one to maintain score normalization and interpretability.
+**Design rationale**
+- Identity is weighted slightly higher to emphasize biological similarity
+- E-value accounts for statistical exclusion of chance matches
+- Weights sum to one for interpretability and normalization
 
-Example
+---
 
-Given:
+## 2. Deterministic Structural Score (D)
 
-pident = 92.4
+**Purpose**  
+Cap confidence for fragmented or structurally inconsistent gene alignments.
 
-evalue = 1e-40
+**Biological question answered**  
+Is the gene structurally intact and coherently aligned?
 
-identity_score = 0.924
-evalue_score   = 0.8
+These factors are **rule-based and non-probabilistic**, derived directly from BLAST alignment structure.
 
+---
 
-Statistical score is computed using the weighted sum formula.
+### a. Alignment Consistency (HSP-based)
 
-Interpretation:
+Alignment consistency is inferred from the number of High-Scoring Pairs (HSPs):
 
-Identity reflects biological similarity
+| HSP Count | Interpretation                    | Score |
+|---------|-----------------------------------|-------|
+| 1       | Single continuous alignment       | 1.0   |
+| 2       | Minor fragmentation               | 0.7   |
+| ≥3      | Strong fragmentation              | 0.3   |
 
-E-value reflects chance exclusion
+This penalizes discontinuous alignments indicative of gene breakage or partial hits.
 
-2. Deterministic Structural Score (D)
+---
 
-Purpose: Cap confidence for truncated or fragmented genes
-Question answered: Is the gene structurally intact?
-
-These factors are non-probabilistic, rule-based checks derived directly from BLAST alignments.
-
-a. Length Consistency
-
-Defined as:
-
-length_consistency = aligned_query_length / reference_gene_length
-
-
-Discrete score values are assigned based on predefined ratio ranges.
-
-b. Subject Coverage
-
-Defined as:
-
-subject_coverage = aligned_subject_length / subject_length
-
-
-Interpretation:
-
-High subject coverage (~100%):
-Suggests near full-length gene matches, likely orthologs or variants.
-
-Low subject coverage:
-May indicate fragments, conserved domains, or large INDELs.
-
-c. Alignment Consistency
-
-Based on the number and structure of HSPs:
-
-Single continuous HSP → highest confidence
-
-Two HSPs with gaps → reduced confidence
-
-≥3 HSPs → low confidence
-
-Fragmentation penalties reflect reduced structural coherence.
-
-Deterministic Score Calculation
-
-Each deterministic factor is scored discretely and combined as:
-
-D = mean(length_consistency_score,
-         subject_coverage_score,
-         alignment_consistency_score)
-
-3. Biological Context Modifier (B)
-
-Purpose: Adjust confidence based on biological plausibility
-Question answered: Does this gene behave like a real AMR gene biologically?
-
-Biological modifiers do not dominate the score and do not assert functionality.
-
-Gene Length Consistency (Biological)
+### b. Deterministic Coverage
 
 Defined as:
 
-length_ratio = aligned_subject_length / expected_gene_length
+coverage = aligned_length / subject_length
 
+yaml
+Copy code
 
-Discrete scoring rules are applied based on proximity to known gene lengths.
+Discrete scoring thresholds:
 
-This requires:
+| Coverage Range | Score |
+|---------------|-------|
+| ≥ 0.90        | 1.0   |
+| 0.75 – 0.89   | 0.8   |
+| 0.50 – 0.74   | 0.5   |
+| < 0.50        | 0.0   |
 
-No motif detection
+---
 
-No ORF prediction
+### Deterministic Score Calculation
 
-Only BLAST results + metadata
+The deterministic score is computed as a **structural gate**:
 
-This alone is a strong biological plausibility check.
+D = min(alignment_consistency, deterministic_coverage)
 
-Important Limitation
+yaml
+Copy code
 
-These modifiers do not determine:
+This ensures that:
+- Both continuity and coverage constraints must be satisfied
+- Structural weaknesses directly cap confidence
 
-Whether the protein is functional
+---
 
-Whether resistance is expressed
+## 3. Biological Context Modifier (B)
 
-Whether motifs confer resistance
+**Purpose**  
+Refine confidence using biological plausibility without asserting functionality.
 
-Whether transcription occurs
+**Biological question answered**  
+Does this alignment behave like a real AMR gene biologically?
 
-They only adjust confidence based on biological realism.
+Biological modifiers **do not override** statistical or deterministic evidence. They only apply **soft penalties or adjustments**.
 
-Final Score Calculation
+---
 
-The final confidence score is computed using a gated multiplicative formula:
+### a. Biological Coverage Plausibility
 
-Final Score = (S × D) × B
-Final Score = min(Final Score, 1.0)
+Defined as:
 
-Interpretation of the Final Score
-Score Range	Interpretation
-≥ 0.80	High confidence
-0.50 – 0.79	Medium confidence
-< 0.50	Low confidence / likely false positive
-Summary of Layer Importance
+b_coverage = aligned_length / subject_length
 
-Statistical Gate: Eliminates random alignments
+yaml
+Copy code
 
-Deterministic Factors: Enforce gene structural integrity
+Discrete biological plausibility scores:
 
-Biological Modifiers: Refine plausibility without overreach
+| Coverage Range | B_coverage |
+|---------------|------------|
+| ≥ 0.95        | 1.0        |
+| 0.80 – 0.94   | 0.95       |
+| < 0.80        | 0.85       |
 
-Together, this framework produces a robust, interpretable, and biologically defensible confidence score suitable for AMR detection in real-world genomic data.
+This reflects known tolerance of AMR genes to small truncations while penalizing implausible lengths.
+
+---
+
+### b. Fragmentation Tolerance (Metadata-aware)
+
+Fragmentation penalties are applied using curated metadata:
+
+- Each gene is annotated as **fragment tolerant** or **not fragment tolerant**
+- Metadata is derived from literature and curated databases
+
+Penalty logic:
+
+- If:
+  - HSP count > 1  
+  - AND gene is **not fragment tolerant**
+- Then:
+  - Apply a soft penalty (0.85)
+
+Otherwise:
+- No penalty applied
+
+---
+
+### Biological Modifier Formula
+
+B = clip(B_coverage × B_frag, 0.8, 1.1)
+
+yaml
+Copy code
+
+This ensures:
+- Biological modifiers fine-tune confidence
+- Scores remain bounded and non-dominant
+
+---
+
+## Important Biological Limitations
+
+This framework **does not determine**:
+
+- Protein functionality
+- Gene expression
+- Resistance phenotype
+- Motif integrity
+- ORF validity
+
+It only evaluates **alignment-based biological plausibility** using BLAST results and curated metadata.
+
+---
+
+## Final Confidence Calculation
+
+The final confidence score is computed as:
+
+Final_confidence_score = S × D × B
+
+yaml
+Copy code
+
+Scores are rounded for stability and interpretability.
+
+---
+
+## Interpretation of Final Confidence Score
+
+| Score Range | Interpretation                          |
+|------------|------------------------------------------|
+| ≥ 0.80     | High confidence AMR gene detection        |
+| 0.50–0.79  | Moderate confidence / partial evidence   |
+| < 0.50     | Low confidence / likely false positive   |
+
+---
+
+## Summary of Layer Importance
+
+- **Statistical Layer**: Establishes existence and excludes random matches  
+- **Deterministic Layer**: Enforces structural integrity  
+- **Biological Layer**: Refines plausibility using curated biological knowledge  
+
+Together, these layers provide a **robust, interpretable, and biologically grounded confidence scoring framework** for AMR gene detection.
+
