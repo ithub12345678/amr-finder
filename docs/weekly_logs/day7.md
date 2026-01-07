@@ -1,7 +1,7 @@
 # Day 7 Log
 
 ## Topic: Biological Modifiers – Fragment Tolerance & Modifying Protein Classification  
-**Date:** 24/12/25
+**Date:** 28/12/25
 **Time Spent:** ~3–4 hours  
 
 ---
