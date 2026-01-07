@@ -286,3 +286,4 @@ Scores are rounded for stability and interpretability.
 
 Together, these layers provide a **robust, interpretable, and biologically grounded confidence scoring framework** for AMR gene detection.
 
+## Fragment Reconstruction Strategy
