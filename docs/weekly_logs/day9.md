@@ -58,8 +58,6 @@ Minimum combined coverage is calculated as:
 combined_coverage =
 (sum of all non-overlapping aligned lengths) / reference_gene_length
 
-yaml
-Copy code
 
 **Threshold**
 
@@ -124,6 +122,11 @@ All fragments belonging to a gene group must align to the **same strand**.
 **Disallowed Case**
 - Mixed strand alignments within the same gene group
 
+Rule: If fragments are on different contigs, allow reconstruction only if:
+    - They map to distinct, non-overlapping parts of the reference gene, and
+    - They are separated by less than X bp when projected onto a pseudo-genome coordinate, or
+    - When assembled order is ambiguous, stash as “candidate reconstruction”.
+ 
 **Rationale**
 
 A single gene cannot biologically span both strands. Mixed-strand hits strongly indicate:
@@ -216,9 +219,6 @@ Each scoring layer captures a different dimension of evidence and therefore requ
 
 S_group = max(S_i) × combined_coverage
 
-yaml
-Copy code
-
 Where:
 - `S_i` = statistical score of fragment *i*
 - `combined_coverage` = non-overlapping coverage fraction
@@ -237,9 +237,6 @@ Where:
 **Method: Minimum Score Selection**
 
 D_group = min(D_i)
-
-yaml
-Copy code
 
 **Rationale**
 
