@@ -58,7 +58,7 @@ Minimum combined coverage is calculated as:
 combined_coverage =
 (sum of all non-overlapping aligned lengths) / reference_gene_length
 
-For the combined gene length the aligned length of the fragments to be considered having maximum overlapping of 30-50 bp and the max gap of 150bp, if there is overlapping for example fragments of 1-400 HIT 1 and 350-500 HIT 2, then the 
+For the combined gene length the aligned length of the fragments to be considered having maximum overlapping of 30-50 bp and the max gap of 50bp, if there is overlapping for example fragments of 1-400 HIT 1 and 350-500 HIT 2, then the 
 total covered = union of [1–500].
 
 **Threshold**
@@ -87,9 +87,7 @@ gap = | previous_fragment.qend − next_fragment.qstart |
 
 **Threshold**
 
-- Maximum allowed gap ≤ **150 bp**  
-  **OR**  
-- Approximately **10–15% of the reference gene length**
+- Maximum allowed gap ≤ **50 bp** 
 
 **Rationale**
 
