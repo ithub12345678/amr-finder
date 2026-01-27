@@ -1,4 +1,5 @@
-Fragment Reconstruction Module (Phase 3)
+## Day 10— Fragment Reconstruction Module (Phase 3).
+## DATE - 27-01-2026 TIME - ~4HRS
 Overview
 
 This module performs gene-level reconstruction of antimicrobial resistance (AMR) genes from fragment-level BLAST hits.
