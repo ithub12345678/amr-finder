@@ -58,6 +58,8 @@ Minimum combined coverage is calculated as:
 combined_coverage =
 (sum of all non-overlapping aligned lengths) / reference_gene_length
 
+For the combined gene length the aligned length of the fragments to be considered having maximum overlapping of 30-50 bp and the max gap of 150bp, if there is overlapping for example fragments of 1-400 HIT 1 and 350-500 HIT 2, then the 
+total covered = union of [1–500].
 
 **Threshold**
 
@@ -83,12 +85,9 @@ The gap between two consecutive fragments is calculated as:
 
 gap = | previous_fragment.qend − next_fragment.qstart |
 
-markdown
-Copy code
-
 **Threshold**
 
-- Maximum allowed gap ≤ **200 bp**  
+- Maximum allowed gap ≤ **150 bp**  
   **OR**  
 - Approximately **10–15% of the reference gene length**
 
@@ -124,7 +123,7 @@ All fragments belonging to a gene group must align to the **same strand**.
 
 Rule: If fragments are on different contigs, allow reconstruction only if:
     - They map to distinct, non-overlapping parts of the reference gene, and
-    - They are separated by less than X bp when projected onto a pseudo-genome coordinate, or
+    - They are separated by less than 150 bp when projected onto a pseudo-genome coordinate, or
     - When assembled order is ambiguous, stash as “candidate reconstruction”.
  
 **Rationale**
@@ -149,15 +148,11 @@ Fragments must appear in a **monotonic order** along the query sequence.
 Fragment 1: qstart = 100, qend = 400
 Fragment 2: qstart = 410, qend = 800
 
-markdown
-Copy code
-
 **Invalid Example**
 Fragment 1: qstart = 500, qend = 800
 Fragment 2: qstart = 100, qend = 300
 
-yaml
-Copy code
+Also the max allowed gap, as mentioned earlier should be lower or equal to 150bp to be considered for reconstruction and coverage calculation. 
 
 **Rationale**
 
@@ -253,9 +248,6 @@ D_group = min(D_i)
 B_group =
 (Σ (B_i × coverage_i)) / (Σ coverage_i)
 
-yaml
-Copy code
-
 With:
 - A lower bound (floor), e.g., **B_group ≥ 0.8**
 
@@ -275,9 +267,6 @@ Coverage weighting ensures larger, more informative fragments contribute more me
 After aggregation:
 
 Final_gene_score = S_group × D_group × B_group
-
-yaml
-Copy code
 
 This preserves the original gated multiplicative design while extending it to reconstructed genes.
 
@@ -314,3 +303,165 @@ Fragment aggregation refines evidence but **cannot create strength**.
 These thresholds mirror fragment-level interpretation but are applied **once at the gene level**, ensuring consistency and robustness.
 
 ---
+Recon_stat — Weighted Statistical Score (Fragment Reconstruction)
+
+This section describes how fragment-level hits are reconstructed into a gene-level confidence score using weighted statistical, structural, and biological evidence.
+
+1. Example Scenario
+
+Two reconstructed fragments (A and B) map to the same reference gene.
+
+Reference gene length: 1000 bp
+
+Fragment Details
+Fragment	Reference Position	Effective Coverage	Scores (S, D, B)
+A	1–400	400 bp	S₁ = 0.9, D₁ = 0.8, B₁ = 0.95
+B	380–800	400 bp*	S₂ = 0.8, D₂ = 0.7, B₂ = 0.9
+
+* Fragment B overlaps Fragment A by 20 bp.
+This overlapping region is redundant and not counted twice.
+
+Fragment Reconstruction Rules Satisfied
+
+Allowed overlap
+
+Minimum gap constraint
+
+Same sseqid (reference gene)
+
+2. Step 1 — Union Coverage
+Reconstructed Union Span
+1–800 bp → 800 bp total coverage
+
+Gene Coverage Fraction
+Coverage fraction
+=
+800
+1000
+=
+0.8
+Coverage fraction=
+1000
+800
+	​
+
+=0.8
+3. Step 2 — Recon_stat (Weighted Statistical Score)
+
+Each fragment contributes proportionally to its unique, non-overlapping coverage.
+
+Formula
+Recon_stat
+=
+(
+400
+800
+×
+0.9
+)
++
+(
+400
+800
+×
+0.8
+)
+Recon_stat=(
+800
+400
+	​
+
+×0.9)+(
+800
+400
+	​
+
+×0.8)
+Result
+Recon_stat
+=
+0.85
+Recon_stat=0.85
+Interpretation
+
+First 400 bp contribute using S₁
+
+Second non-redundant 400 bp contribute using S₂
+
+Overlapping bases are not double-counted
+
+4. Step 3 — Recon_det (Structural Integrity Score)
+
+Structural integrity is constrained by the weakest essential fragment.
+
+Formula
+Recon_det
+=
+min
+⁡
+(
+0.8
+,
+  
+0.7
+)
+Recon_det=min(0.8,0.7)
+Result
+Recon_det
+=
+0.7
+Recon_det=0.7
+Rationale
+
+A gene is only as intact as its weakest region
+
+Strong regions cannot compensate for structural failure
+
+Core principle preserved:
+
+Strong evidence cannot rescue broken structure.
+
+5. Step 4 — Recon_bio (Biological Plausibility)
+
+Recon_bio reflects biological context and reconstructed coverage.
+
+Example Value
+Recon_bio
+=
+0.95
+Recon_bio=0.95
+6. Step 5 — Final Reconstruction Confidence
+Formula
+Final_recon_conf
+=
+Recon_stat
+×
+Recon_det
+×
+Recon_bio
+Final_recon_conf=Recon_stat×Recon_det×Recon_bio
+Calculation
+=
+0.85
+×
+0.7
+×
+0.95
+=
+0.565
+=0.85×0.7×0.95=0.565
+7. Final Interpretation
+
+✔ Convincing evidence for AMR gene presence
+
+⚠ Gene is fragmented and structurally incomplete
+
+🔶 Overall confidence is moderate, not high
+
+8. Key Guarantees of This Framework
+
+No score inflation from overlapping fragments
+
+Structural weaknesses are explicitly penalized
+
+Partial genes are distinguished from intact genes
